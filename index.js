@@ -3,6 +3,16 @@ const https = require('https')
 const fs = require('fs')
 const ProgressBar = require('progress');
 
+const commander = require("commander")
+const { program } = require("commander")
+
+class CookieNotFound extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "CookieNotFound";
+  }
+}
+
 // The sole purpose of this wrapper is to add an event for when the cookie changes
 // so that we can close the page once we have the cookie + url info we need
 class CookieWrapper {
@@ -25,9 +35,13 @@ class CookieWrapper {
   }
 }
 
+
 // This is to manage the found + cookies + url variables that would other be unaccessible if
 // I used a normal function inside the page.on callback (the callback wouldn't be able to
 // modify external variable values)
+
+// LOL actually it might be possible with just a simple arrow function because the "this"
+// of an arrow function is the background
 class Handler {
   constructor() {
     this.found = false;
@@ -58,40 +72,45 @@ class Handler {
   }
 }
 
-(async () => {
-  const browser = await puppeteer.launch({ 
-    headless: "new", 
-    executablePath: 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-    args: ['--enable-features=NetworkService']
-  });
+
+/**
+ * Downloads recording from url.
+ * 
+ * Note: must use executablePath so zoom mp4 recording loads (chromium doesn't support mp4)
+ * @param {puppeteer.Browser} browser 
+ * @param {string} url 
+ */
+async function downloadRecording(browser, url, path="./Recording.mp4", progress_bar_prefix="Downloading ") {
   const page = await browser.newPage();
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36')
   await page.setRequestInterception(true);
 
   let handler = new Handler();
 
+  console.log("Retrieving cookie")
   page.on("request", handler.handle.bind(handler)) // needs bind otherwise "this" keyword is undefined
 
   await Promise.race([
-    page.goto("https://us02web.zoom.us/rec/play/ToU9UQTiwY2LZvToaELslGRf_kHL7NSlEwz1a64kx65MSyh83nUz0g0g-QbsW7Jnj6LkzQssfbO89D82.FCGTjlattB3-tWki?canPlayFromShare=true&from=share_recording_detail&continueMode=true&componentName=rec-play&originRequestUrl=https%3A%2F%2Fus02web.zoom.us%2Frec%2Fshare%2Fj3jK92NgIOpeiCmu8egt4FyW3cXHit-9CutpRhqnYNPhlwsMyzLITSHyfiIBp8dV.DdD_-BtP79gANHXw"), 
-    handler.waitUntilCookieFound()
+    handler.waitUntilCookieFound(),
+    page.goto(url, { waitUntil: "networkidle0" }), 
   ]);
+
+  if (handler.cookie.get() === null) {
+    throw CookieNotFound("Cookie was unable to be intercepted.")
+  }
 
 
   page.off("request", handler)
   await page.close()
 
-  await browser.close();
-
-  await download(handler.url, {
+  await downloadFile(handler.url, {
     Cookie: handler.cookie.get(),
     Referer: "https://zoom.us/"
-  })
-})()
+  }, path, progress_bar_prefix);
+}
 
 
-async function download(url, headers) {
-  const file = fs.createWriteStream("Recording 2.mp4");
+async function downloadFile(url, headers, path="./Recording.mp4", progress_bar_prefix="Downloading ") {
+  const file = fs.createWriteStream(path);
 
   return new Promise((resolve, reject) => {
     try {
@@ -107,10 +126,9 @@ async function download(url, headers) {
 
         let len = parseInt(response.headers['content-length'], 10);
         let start = new Date();
-        let bar = new ProgressBar('downloading [:bar] :mbrateMB/s :percent :etas', {
-          complete: '=',
+        let bar = new ProgressBar(`${progress_bar_prefix}[:bar] :mbrateMB/s :percent :etas`, {
           incomplete: ' ',
-          width: 20,
+          // width: 40,
           total: len
         });
 
@@ -140,3 +158,46 @@ async function download(url, headers) {
     }
   })
 }
+
+if (require.main === module) {
+  program
+    .name('zoom-dl')
+    .description('Download zoom recordings automatically')
+    .version('0.0.1')
+    .argument('<url>', 'zoom recording url to download', parseURL)
+    .parse(process.argv);
+
+  let url = program.args[0];
+
+  (async () => {
+
+    // must use executablePath so zoom mp4 recording loads (chromium doesn't support mp4)
+    const browser = await puppeteer.launch({ 
+      headless: "new", 
+      executablePath: 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
+    });
+
+    try {
+      await downloadRecording(browser, url)
+    } catch (e) {
+      console.error(`${e.name}: ${e.message}`);
+    }
+
+    await browser.close();
+
+  })()
+}
+
+function parseURL(value) {
+  try {
+    let url = new URL(value)
+    if (!url.hostname.endsWith("zoom.us")) {
+      throw new commander.InvalidArgumentError("Invalid Zoom URL.")
+    }
+    return value
+  } catch {
+    throw new commander.InvalidArgumentError("Invalid Zoom URL.")
+  }
+}
+
+module.exports = downloadRecording
