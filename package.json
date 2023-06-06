@@ -1,22 +1,17 @@
 {
   "name": "zoom-request-interception",
   "version": "1.0.0",
-  "description": "",
+  "description": "Automatically downloads zoom recordings",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "lint": "eslint ./"
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["zoom", "downloader"],
+  "author": "Jason",
   "license": "ISC",
   "dependencies": {
-    "eslint-plugin-import": "^2.27.5",
     "progress": "^2.0.3",
     "puppeteer-core": "^20.5.0"
-  },
-  "devDependencies": {
-    "eslint": "^8.42.0",
-    "eslint-config-airbnb-base": "^15.0.0"
   }
 }

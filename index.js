@@ -163,7 +163,7 @@ if (require.main === module) {
   program
     .name('zoom-dl')
     .description('Download zoom recordings automatically')
-    .version('0.0.1')
+    .version('1.0.0')
     .argument('<url>', 'zoom recording url to download', parseURL)
     .parse(process.argv);
 
