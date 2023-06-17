@@ -17,7 +17,7 @@ program.exitOverride((err) => {
 program
   .name('zoom-dl')
   .description('Download zoom recordings automatically')
-  .version('1.0.3', '-v, --version', 'output the version number')
+  .version('1.0.4', '-v, --version', 'output the version number')
   .argument('<url>', 'zoom recording url to download', parseURL)
   .requiredOption('-b, --browser-exec-path <path>', 'path to the Chrome executable', parseChromePath);
 
