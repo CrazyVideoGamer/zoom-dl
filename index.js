@@ -1,10 +1,6 @@
-const puppeteer = require("puppeteer-core");
 const https = require('https')
 const fs = require('fs')
 const ProgressBar = require('progress');
-
-const commander = require("commander")
-const { program } = require("commander")
 
 class CookieNotFound extends Error {
   constructor(message) {
@@ -79,15 +75,18 @@ class Handler {
  * Note: must use executablePath so zoom mp4 recording loads (chromium doesn't support mp4)
  * @param {puppeteer.Browser} browser 
  * @param {string} url 
+ * @param {string} [path="./Recording.mp4"] 
+ * @param {string} [progress_bar_prefix="Downloading "] 
  */
 async function downloadRecording(browser, url, path="./Recording.mp4", progress_bar_prefix="Downloading ") {
   const page = await browser.newPage();
   await page.setRequestInterception(true);
 
   let handler = new Handler();
+  let handle_func = handler.handle.bind(handler)
 
   console.log("Retrieving cookie")
-  page.on("request", handler.handle.bind(handler)) // needs bind otherwise "this" keyword is undefined
+  page.on("request", handle_func) // needs bind otherwise "this" keyword is undefined
 
   await Promise.race([
     handler.waitUntilCookieFound(),
@@ -99,7 +98,8 @@ async function downloadRecording(browser, url, path="./Recording.mp4", progress_
   }
 
 
-  page.off("request", handler)
+  page.off("request", handle_func)
+  await page.setRequestInterception(false);
   await page.close()
 
   await downloadFile(handler.url, {
@@ -157,47 +157,6 @@ async function downloadFile(url, headers, path="./Recording.mp4", progress_bar_p
       reject(e.message)
     }
   })
-}
-
-if (require.main === module) {
-  program
-    .name('zoom-dl')
-    .description('Download zoom recordings automatically')
-    .version('1.0.0')
-    .argument('<url>', 'zoom recording url to download', parseURL)
-    .parse(process.argv);
-
-  let url = program.args[0];
-
-  (async () => {
-
-    // must use executablePath so zoom mp4 recording loads (chromium doesn't support mp4)
-    const browser = await puppeteer.launch({ 
-      headless: "new", 
-      executablePath: 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
-    });
-
-    try {
-      await downloadRecording(browser, url)
-    } catch (e) {
-      console.error(`${e.name}: ${e.message}`);
-    }
-
-    await browser.close();
-
-  })()
-}
-
-function parseURL(value) {
-  try {
-    let url = new URL(value)
-    if (!url.hostname.endsWith("zoom.us")) {
-      throw new commander.InvalidArgumentError("Invalid Zoom URL.")
-    }
-    return value
-  } catch {
-    throw new commander.InvalidArgumentError("Invalid Zoom URL.")
-  }
 }
 
 module.exports = downloadRecording

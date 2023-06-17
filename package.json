@@ -1,17 +1,28 @@
 {
-  "name": "zoom-request-interception",
+  "name": "zoom-dl",
   "version": "1.0.0",
   "description": "Automatically downloads zoom recordings",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
+    "start": "node cli.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["zoom", "downloader"],
+  "keywords": [
+    "zoom",
+    "downloader"
+  ],
   "author": "Jason",
   "license": "ISC",
   "dependencies": {
+    "commander": "^11.0.0",
     "progress": "^2.0.3",
     "puppeteer-core": "^20.5.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CrazyVideoGamer/zoom-interception-dl.git"
+  },
+  "bin": {
+    "zoom-dl": "./cli.js"
   }
 }
