@@ -1,6 +1,6 @@
 {
   "name": "zoom-dl",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Automatically downloads zoom recordings",
   "main": "index.js",
   "scripts": {
