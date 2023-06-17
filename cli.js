@@ -22,7 +22,6 @@ program
   .requiredOption('-b, --browser-exec-path <path>', 'path to the Chrome executable', parseChromePath);
 
 if (process.argv.length <= 2) {
-  console.log('heyyy', process.argv, process.argv.length)
   program.outputHelp();
   process.exit(0)
 }
@@ -42,16 +41,16 @@ const options = program.opts();
     });
 
     try {
-      await downloadRecording(browser, url)
+      await downloadRecording(browser, url);
     } catch (e) {
       console.error(`${e.name}: ${e.message}`);
-      await browser.close()
+      await browser.close();
       process.exit(1);
     }
   } catch(e) {
     if (e.message === "spawn UNKNOWN") {
-      console.error("Invalid chrome path. Chrome was unable to be launched.")
-      process.exit(1)
+      console.error("Invalid Chrome path. Puppeteer was unable to launch Chrome.");
+      process.exit(1);
     } else {
       throw e;
     }
