@@ -17,11 +17,12 @@ program.exitOverride((err) => {
 program
   .name('zoom-dl')
   .description('Download zoom recordings automatically')
-  .version('1.0.0')
+  .version('1.0.3', '-v, --version', 'output the version number')
   .argument('<url>', 'zoom recording url to download', parseURL)
   .requiredOption('-b, --browser-exec-path <path>', 'path to the Chrome executable', parseChromePath);
 
-if (process.argv.length == 2) {
+if (process.argv.length <= 2) {
+  console.log('heyyy', process.argv, process.argv.length)
   program.outputHelp();
   process.exit(0)
 }

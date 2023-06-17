@@ -38,7 +38,7 @@ class CookieWrapper {
 
 // LOL actually it might be possible with just a simple arrow function because the "this"
 // of an arrow function is the background
-class Handler {
+class HandlerWrapper {
   constructor() {
     this.found = false;
     this.cookie = new CookieWrapper();
@@ -47,7 +47,7 @@ class Handler {
   }
 
   // main callback handler
-  handle(req) {
+  handler(req) {
     if (req.isInterceptResolutionHandled()) return;
     if (!this.found && req.resourceType() === "media" && req.url().includes(".mp4") && req.url().includes("ssrweb.zoom.us")) {
       this.cookie.set(req.headers().cookie)
@@ -82,28 +82,28 @@ async function downloadRecording(browser, url, path="./Recording.mp4", progress_
   const page = await browser.newPage();
   await page.setRequestInterception(true);
 
-  let handler = new Handler();
-  let handle_func = handler.handle.bind(handler)
+  let handler_wrapper = new HandlerWrapper();
+  let handler = handler_wrapper.handler.bind(handler_wrapper)
 
   console.log("Retrieving cookie")
-  page.on("request", handle_func) // needs bind otherwise "this" keyword is undefined
+  page.on("request", handler) // needs bind otherwise "this" keyword is undefined
 
   await Promise.race([
-    handler.waitUntilCookieFound(),
+    handler_wrapper.waitUntilCookieFound(),
     page.goto(url, { waitUntil: "networkidle0" }), 
   ]);
 
-  if (handler.cookie.get() === null) {
+  if (handler_wrapper.cookie.get() === null) {
     throw CookieNotFound("Cookie was unable to be intercepted.")
   }
 
 
-  page.off("request", handle_func)
+  page.off("request", handler)
   await page.setRequestInterception(false);
   await page.close()
 
-  await downloadFile(handler.url, {
-    Cookie: handler.cookie.get(),
+  await downloadFile(handler_wrapper.url, {
+    Cookie: handler_wrapper.cookie.get(),
     Referer: "https://zoom.us/"
   }, path, progress_bar_prefix);
 }

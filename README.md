@@ -7,7 +7,7 @@ Please note that for protected cloud recordings, the recording *should* have the
 Node.js, npm, and Chrome need to be installed (Firefox is not supported at the moment - might add if someone asks me to, but currently I have no need of adding any such support)
 
 # Installation
-Run `npm i zoom-dl -g` or `npx zoom-dl (...)` 
+Run `npm i zoom-dl -g` or `npx zoom-dl@latest (...)` 
 
 # Usage
 ```
