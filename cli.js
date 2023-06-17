@@ -19,9 +19,14 @@ program
   .description('Download zoom recordings automatically')
   .version('1.0.0')
   .argument('<url>', 'zoom recording url to download', parseURL)
-  .requiredOption('-b, --browser-exec-path <path>', 'path to the Chrome executable', parseChromePath)
-  .parse(process.argv);
+  .requiredOption('-b, --browser-exec-path <path>', 'path to the Chrome executable', parseChromePath);
 
+if (process.argv.length == 2) {
+  program.outputHelp();
+  process.exit(0)
+}
+
+program.parse(process.argv);
 
 let url = program.args[0];
 const options = program.opts();
