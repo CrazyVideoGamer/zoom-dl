@@ -2,6 +2,8 @@ const https = require('https')
 const fs = require('fs')
 const ProgressBar = require('progress');
 
+const { validateZoomURL } = require("./utils")
+
 class CookieNotFound extends Error {
   constructor(message) {
     super(message);
@@ -74,38 +76,47 @@ class HandlerWrapper {
  * 
  * Note: must use executablePath so zoom mp4 recording loads (chromium doesn't support mp4)
  * @param {puppeteer.Browser} browser 
- * @param {string} url 
+ * @param {string[]} urls 
  * @param {string} [path="./Recording.mp4"] 
  * @param {string} [progress_bar_prefix="Downloading "] 
  */
-async function downloadRecording(browser, url, path="./Recording.mp4", progress_bar_prefix="Downloading ") {
+async function downloadRecording(browser, urls, prefix="Recording", progress_bar_prefix="Downloading ") {
+
   const page = await browser.newPage();
   await page.setRequestInterception(true);
 
-  let handler_wrapper = new HandlerWrapper();
-  let handler = handler_wrapper.handler.bind(handler_wrapper)
+  for (let i=0; i < urls.length; i++) {
+    let url = urls[i];
+    validateZoomURL(url)
 
-  console.log("Retrieving cookie")
-  page.on("request", handler) // needs bind otherwise "this" keyword is undefined
+    let handler_wrapper = new HandlerWrapper();
+    let handler = handler_wrapper.handler.bind(handler_wrapper)
 
-  await Promise.race([
-    handler_wrapper.waitUntilCookieFound(),
-    page.goto(url, { waitUntil: "networkidle0" }), 
-  ]);
+    console.log("Retrieving cookie")
+    page.on("request", handler) // needs bind otherwise "this" keyword is undefined
 
-  if (handler_wrapper.cookie.get() === null) {
-    throw CookieNotFound("Cookie was unable to be intercepted.")
+    await Promise.race([
+      handler_wrapper.waitUntilCookieFound(),
+      page.goto(url, { waitUntil: "networkidle0" }), 
+    ]);
+
+    page.off("request", handler)
+
+    if (handler_wrapper.cookie.get() === null) {
+      throw CookieNotFound("Cookie was unable to be intercepted.")
+    }
+
+    let path = urls.length > 1 ? `./${prefix} ${i+1}.mp4` : `./${prefix}.mp4`
+
+    await downloadFile(handler_wrapper.url, {
+      Cookie: handler_wrapper.cookie.get(),
+      Referer: "https://zoom.us/"
+    }, path, progress_bar_prefix);
+
   }
 
-
-  page.off("request", handler)
   await page.setRequestInterception(false);
-  await page.close()
-
-  await downloadFile(handler_wrapper.url, {
-    Cookie: handler_wrapper.cookie.get(),
-    Referer: "https://zoom.us/"
-  }, path, progress_bar_prefix);
+  await page.close();
 }
 
 
@@ -158,5 +169,6 @@ async function downloadFile(url, headers, path="./Recording.mp4", progress_bar_p
     }
   })
 }
+
 
 module.exports = downloadRecording

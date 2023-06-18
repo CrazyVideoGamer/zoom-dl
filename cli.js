@@ -3,7 +3,7 @@
 const puppeteer = require("puppeteer-core");
 const commander = require("commander");
 const { program } = require("commander");
-const downloadRecording = require('./index');
+const downloadRecordings = require('./index');
 const fs = require('fs');
 
 program.exitOverride((err) => {
@@ -18,9 +18,12 @@ const pkg = require("./package.json")
 
 program
   .name('zoom-dl')
-  .description('Download zoom recordings automatically')
+  .description(`Download zoom recordings automatically.
+
+Specify an URL with -u or --url, or create a urls.txt file in the 
+same directory and place the URLs you want to download in each line`)
   .version(pkg.version, '-v, --version', 'output the version number')
-  .argument('<url>', 'zoom recording url to download', parseURL)
+  .option('-u, --url <URL>', 'zoom recording url to download if you do not want to create a urls.txt file')
   .requiredOption('-b, --browser-exec-path <path>', 'path to the Chrome executable', parseChromePath);
 
 if (process.argv.length <= 2) {
@@ -30,25 +33,41 @@ if (process.argv.length <= 2) {
 
 program.parse(process.argv);
 
-let url = program.args[0];
+// let url = program.args[0];
 const options = program.opts();
+
+let urls;
+
+if (options.url) {
+  urls = [options.url]
+} else {
+  if (!fs.existsSync("./urls.txt")) {
+    console.error("error: ./urls.txt does not exist and -u, --url option was not used");
+    console.log();
+    program.outputHelp();
+    process.exit(1);
+  }
+
+  urls = fs.readFileSync("./urls.txt").toString().replace(/\r\n/g,'\n').split('\n');
+  for (let url of urls) {
+    try {
+      validateZoomURL(url)
+    } catch {
+      console.error(`Invalid zoom url: ${url}`)
+      process.exit(1)
+    }
+  }
+}
 
 (async () => {
 
-  // must use executablePath so zoom mp4 recording loads (chromium doesn't support mp4)
+  let browser;
   try {
-    const browser = await puppeteer.launch({ 
+    // must use executablePath so zoom mp4 recording loads (chromium doesn't support mp4)
+    browser = await puppeteer.launch({ 
       headless: "new", 
       executablePath: options.browserExecPath
     });
-
-    try {
-      await downloadRecording(browser, url);
-    } catch (e) {
-      console.error(`${e.name}: ${e.message}`);
-      await browser.close();
-      process.exit(1);
-    }
   } catch(e) {
     if (e.message === "spawn UNKNOWN") {
       console.error("Invalid Chrome path. Puppeteer was unable to launch Chrome.");
@@ -58,21 +77,16 @@ const options = program.opts();
     }
   }
 
-
-
-})()
-
-function parseURL(value) {
   try {
-    let url = new URL(value)
-    if (!url.hostname.endsWith("zoom.us")) {
-      throw new commander.InvalidArgumentError("Invalid Zoom URL.")
-    }
-    return value
-  } catch { // for the errors caused by new URL(value) (invalid urls, but could be zoom or not)
-    throw new commander.InvalidArgumentError("Invalid URL.")
+    await downloadRecordings(browser, urls);
+    await browser.close();
+  } catch (e) {
+    console.error(`${e.name}: ${e.message}`);
+    await browser.close();
+    process.exit(1);
   }
-}
+})();
+
 
 function parseChromePath(value) {
   if (!fs.existsSync(value)) throw new commander.InvalidArgumentError("Path does not exist.");
